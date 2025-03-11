@@ -1,15 +1,15 @@
 # DermaLens API Documentation
 
-## _Authentication & User Management API_
+## _Authentication & User Management API with Supabase_
 
 [![N|Solid](https://i.imgur.com/8wECp9E.png)](https://dermalens.com)
 
 [![Node.js](https://img.shields.io/badge/Node.js-14.x+-green.svg)](https://nodejs.org)
 [![Express](https://img.shields.io/badge/Express-4.x-blue.svg)](https://expressjs.com)
+[![Supabase](https://img.shields.io/badge/Supabase-Database-green.svg)](https://supabase.io)
 [![JWT](https://img.shields.io/badge/JWT-Authentication-orange.svg)](https://jwt.io)
-[![MongoDB](https://img.shields.io/badge/MongoDB-Database-green.svg)](https://mongodb.com)
 
-This repository contains the authentication and user management API for the DermaLens application. It provides endpoints for user registration, authentication, profile management, and session handling.
+This repository contains the authentication and user management API for the DermaLens application. It leverages Supabase for database operations and provides endpoints for user registration, authentication, profile management, and session handling.
 
 ## Features
 
@@ -19,6 +19,7 @@ This repository contains the authentication and user management API for the Derm
 - **Password Security** - Bcrypt hashing for secure password storage
 - **Input Validation** - Request validation middleware
 - **Error Handling** - Consistent error responses
+- **Supabase Integration** - Leveraging Supabase for database operations
 
 ## Project Structure
 
@@ -67,11 +68,14 @@ npm install
 
 3. Create a `.env` file in the root directory with the following variables:
 ```
-PORT=3000
-MONGODB_URI=mongodb://localhost:27017/dermalens
+SUPABASE_URL=https://rmhefocqqromltyvkcmi.supabase.co
+SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtaGVmb2NxcXJvbWx0eXZrY21pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg2MzYwMDAsImV4cCI6MjA1NDIxMjAwMH0.SYYdCGiwuZz0wgyyQ9n_50YdKrRJ7mjagA0Uo6--qsU
+SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtaGVmb2NxcXJvbWx0eXZrY21pIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczODYzNjAwMCwiZXhwIjoyMDU0MjEyMDAwfQ.3yMSb8gtygWwG1ckyOwbDb0e2fyDHpkxfVdMCvp3Zec
 JWT_SECRET=your_jwt_secret_key
-JWT_EXPIRES_IN=7d
+PORT=3000
 ```
+
+> **IMPORTANT**: The `.env` file contains sensitive information. Never commit it to version control. Make sure it's included in your `.gitignore` file.
 
 4. Start the server:
 ```sh
@@ -85,20 +89,38 @@ npm run dev
 
 ## Implementation Details
 
+### Supabase Configuration
+
+The API uses Supabase as its database and authentication provider. The connection is configured in `config/supabase.js`:
+
+```javascript
+const { createClient } = require('@supabase/supabase-js');
+
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+
+// Client for anonymous operations
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Client with service role for admin operations
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+module.exports = { supabase, supabaseAdmin };
+```
+
 ### Authentication Flow
 
 1. **Registration (Signup)**:
    - Client sends email, password, and name to `/api/auth/signup`
    - Server validates input
-   - Server checks if email already exists
-   - If email is unique, password is hashed using bcrypt
-   - New user is created in the database
+   - Server uses Supabase to create a new user
    - JWT token is generated and returned with user data
 
 2. **Login (Signin)**:
    - Client sends email and password to `/api/auth/signin`
    - Server validates input
-   - Server checks if user exists and verifies password
+   - Server authenticates with Supabase
    - If credentials are valid, JWT token is generated and returned with user data
 
 3. **Authentication Middleware**:
@@ -108,41 +130,114 @@ npm run dev
 
 ### Code Examples
 
+#### Supabase Configuration (supabase.js)
+
+```javascript
+const { createClient } = require('@supabase/supabase-js');
+
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+module.exports = { supabase, supabaseAdmin };
+```
+
 #### Authentication Controller (authController.js)
 
 ```javascript
-// Sample signup function
+const jwt = require('jsonwebtoken');
+const { supabase, supabaseAdmin } = require('../config/supabase');
+
+// Signup function
 exports.signup = async (req, res) => {
   try {
     const { email, password, name } = req.body;
     
-    // Check if user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: 'Email already in use' });
-    }
-    
-    // Create new user
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({
+    // Create user in Supabase
+    const { data, error } = await supabaseAdmin.auth.admin.createUser({
       email,
-      password: hashedPassword,
-      name
+      password,
+      user_metadata: { name }
     });
     
-    await user.save();
+    if (error) {
+      return res.status(400).json({ message: error.message });
+    }
     
-    // Generate token
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRES_IN
+    // Create profile in profiles table
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .insert([{ 
+        id: data.user.id, 
+        name, 
+        email 
+      }]);
+    
+    if (profileError) {
+      return res.status(400).json({ message: profileError.message });
+    }
+    
+    // Generate JWT token
+    const token = jwt.sign({ id: data.user.id }, process.env.JWT_SECRET, {
+      expiresIn: '7d'
     });
     
     // Return user data and token
     res.status(201).json({
       user: {
-        id: user._id,
-        email: user.email,
-        name: user.name
+        id: data.user.id,
+        email: data.user.email,
+        name
+      },
+      token
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// Signin function
+exports.signin = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    // Authenticate with Supabase
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+    
+    if (error) {
+      return res.status(400).json({ message: error.message });
+    }
+    
+    // Get user profile
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', data.user.id)
+      .single();
+    
+    if (profileError) {
+      return res.status(400).json({ message: profileError.message });
+    }
+    
+    // Generate JWT token
+    const token = jwt.sign({ id: data.user.id }, process.env.JWT_SECRET, {
+      expiresIn: '7d'
+    });
+    
+    // Return user data and token
+    res.status(200).json({
+      user: {
+        id: data.user.id,
+        email: data.user.email,
+        name: profile.name,
+        phone: profile.phone,
+        avatar: profile.avatar
       },
       token
     });
@@ -156,7 +251,7 @@ exports.signup = async (req, res) => {
 
 ```javascript
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const { supabase } = require('../config/supabase');
 
 module.exports = async (req, res, next) => {
   try {
@@ -171,9 +266,14 @@ module.exports = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // Find user
-    const user = await User.findById(decoded.id);
-    if (!user) {
+    // Get user from Supabase
+    const { data: user, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', decoded.id)
+      .single();
+    
+    if (error || !user) {
       return res.status(401).json({ message: 'User not found' });
     }
     
@@ -186,25 +286,58 @@ module.exports = async (req, res, next) => {
 };
 ```
 
-#### Authentication Routes (auth.js)
+## Database Schema
 
-```javascript
-const express = require('express');
-const router = express.Router();
-const authController = require('../controllers/authController');
-const authMiddleware = require('../middleware/auth');
+### Profiles Table
 
-// Public routes
-router.post('/signup', authController.signup);
-router.post('/signin', authController.signin);
+The API uses a `profiles` table in Supabase with the following schema:
 
-// Protected routes
-router.post('/logout', authMiddleware, authController.logout);
-router.get('/profile', authMiddleware, authController.getProfile);
-router.put('/profile', authMiddleware, authController.updateProfile);
+```sql
+create table profiles (
+  id uuid references auth.users on delete cascade primary key,
+  name text,
+  email text unique,
+  phone text,
+  avatar text,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
 
-module.exports = router;
+-- Enable RLS (Row Level Security)
+alter table profiles enable row level security;
+
+-- Create policies
+create policy "Public profiles are viewable by everyone."
+  on profiles for select
+  using ( true );
+
+create policy "Users can insert their own profile."
+  on profiles for insert
+  with check ( auth.uid() = id );
+
+create policy "Users can update their own profile."
+  on profiles for update
+  using ( auth.uid() = id );
 ```
+
+## Security Considerations
+
+1. **Environment Variables**: 
+   - Keep your `.env` file secure and never commit it to version control
+   - Rotate your JWT secret and Supabase keys periodically
+
+2. **Supabase Security**:
+   - Use Row Level Security (RLS) policies in Supabase to restrict data access
+   - Use the service role key only for server-side operations that require elevated privileges
+
+3. **JWT Best Practices**:
+   - Set appropriate expiration times for tokens
+   - Include only necessary data in the token payload
+   - Implement token refresh mechanisms for long-lived sessions
+
+4. **Input Validation**:
+   - Validate all user inputs before processing
+   - Use middleware for consistent validation across endpoints
 
 ## Error Handling
 
@@ -241,18 +374,19 @@ Build and run with Docker:
 
 ```sh
 docker build -t dermalens-auth-api .
-docker run -p 3000:3000 -d dermalens-auth-api
+docker run -p 3000:3000 --env-file .env -d dermalens-auth-api
 ```
 
 ### Environment Variables for Production
 
-For production deployment, ensure these environment variables are set:
+For production deployment, ensure these environment variables are set securely:
 
 - `NODE_ENV=production`
 - `PORT=3000` (or your preferred port)
-- `MONGODB_URI=your_production_mongodb_uri`
+- `SUPABASE_URL=your_supabase_url`
+- `SUPABASE_KEY=your_supabase_key`
+- `SUPABASE_SERVICE_KEY=your_supabase_service_key`
 - `JWT_SECRET=your_strong_secret_key`
-- `JWT_EXPIRES_IN=7d` (or your preferred token expiration time)
 
 ## License
 
@@ -263,5 +397,5 @@ MIT
 [//]: # (Reference links)
    [node.js]: <http://nodejs.org>
    [express]: <http://expressjs.com>
-   [mongodb]: <https://www.mongodb.com/>
+   [supabase]: <https://supabase.io>
    [jwt]: <https://jwt.io/>
