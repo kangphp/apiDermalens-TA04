@@ -24,7 +24,7 @@ This repository contains the authentication and user management API for the Derm
 ## Project Structure
 
 ```
-supabase-auth-api/
+apiDermalens-TA04/
 ├── .env                  # Environment variables (not in repo)
 ├── .gitignore            # Git ignore file
 ├── index.js              # Application entry point
@@ -57,8 +57,8 @@ supabase-auth-api/
 
 1. Clone the repository:
 ```sh
-git clone https://github.com/yourusername/supabase-auth-api.git
-cd supabase-auth-api
+git clone https://github.com/kangphp/apiDermalens-TA04.git
+cd apiDermalens-TA04
 ```
 
 2. Install dependencies:
