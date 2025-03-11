@@ -1,14 +1,23 @@
 {
   "name": "supabase-auth-api",
   "version": "1.0.0",
-  "description": "",
+  "description": "Authentication API for DermaLens using Supabase",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "jest",
+    "lint": "eslint ."
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "supabase",
+    "auth",
+    "api",
+    "dermalens",
+    "jwt"
+  ],
+  "author": "DermaLens Team",
+  "license": "MIT",
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
     "bcrypt": "^5.1.1",
@@ -18,5 +27,14 @@
     "jsonwebtoken": "^9.0.2",
     "supabase": "^2.15.8",
     "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.3",
+    "supertest": "^6.3.4"
+  },
+  "engines": {
+    "node": ">=14.0.0"
   }
 }
