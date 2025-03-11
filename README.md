@@ -68,9 +68,9 @@ npm install
 
 3. Create a `.env` file in the root directory with the following variables:
 ```
-SUPABASE_URL=https://rmhefocqqromltyvkcmi.supabase.co
-SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtaGVmb2NxcXJvbWx0eXZrY21pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg2MzYwMDAsImV4cCI6MjA1NDIxMjAwMH0.SYYdCGiwuZz0wgyyQ9n_50YdKrRJ7mjagA0Uo6--qsU
-SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtaGVmb2NxcXJvbWx0eXZrY21pIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTczODYzNjAwMCwiZXhwIjoyMDU0MjEyMDAwfQ.3yMSb8gtygWwG1ckyOwbDb0e2fyDHpkxfVdMCvp3Zec
+SUPABASE_URL=https://your_project_supabase_url.supabase.co
+SUPABASE_KEY=your_supabase_key
+SUPABASE_SERVICE_KEY=your_supabase_secret_key
 JWT_SECRET=your_jwt_secret_key
 PORT=3000
 ```
